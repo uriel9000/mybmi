@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHECK YOUR BMI</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('bmii.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #result, #recommendations, #bmiHistory {
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BMI CHECKER</h1>
+        <form id="bmiForm">
+            <fieldset>
+                <legend>Enter your Height, Weight, Age, and Gender</legend>
+
+                <label>Unit System:</label>
+                <input type="radio" id="metric" name="unit" value="metric" checked onclick="switchUnits()"> Metric
+                <input type="radio" id="imperial" name="unit" value="imperial" onclick="switchUnits()"> Imperial
+
+                <div id="metricInputs">
+                    <label for="height">Height (cm):</label>
+                    <input type="text" id="height" name="height" placeholder="Enter your height in centimeters">
+                    <label for="weight">Weight (kg):</label>
+                    <input type="text" id="weight" name="weight" placeholder="Enter your weight in kilograms">
+                </div>
+                
+                <div id="imperialInputs" style="display: none;">
+                    <label for="feet">Height (feet):</label>
+                    <input type="text" id="feet" name="feet" placeholder="Feet">
+                    <label for="inches">Height (inches):</label>
+                    <input type="text" id="inches" name="inches" placeholder="Inches">
+                    <label for="pounds">Weight (lbs):</label>
+                    <input type="text" id="pounds" name="pounds" placeholder="Enter your weight in pounds">
+                </div>
+
+                <label for="age">Age:</label>
+                <input type="text" id="age" name="age" placeholder="Enter your age in years" required>
+
+                <label for="gender">Gender:</label>
+                <select id="gender" name="gender" required>
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+
+                <button type="submit">Calculate BMI</button>
+            </fieldset>
+
+            <div id="result"></div>
+            <div id="recommendations"></div>
+            <div id="bmiHistory"></div>
+        </form>
+    </div>
+
+    <script>
+        // Switch between Metric and Imperial input fields
+        function switchUnits() {
+            if (document.getElementById("metric").checked) {
+                document.getElementById("metricInputs").style.display = "block";
+                document.getElementById("imperialInputs").style.display = "none";
+            } else {
+                document.getElementById("metricInputs").style.display = "none";
+                document.getElementById("imperialInputs").style.display = "block";
+            }
+        }
+
+        // Save BMI history to localStorage
+        function saveBmiHistory(bmi) {
+            let history = JSON.parse(localStorage.getItem("bmiHistory")) || [];
+            history.push({
+                bmi: bmi,
+                date: new Date().toLocaleString()
+            });
+            localStorage.setItem("bmiHistory", JSON.stringify(history));
+            displayBmiHistory();
+        }
+
+        // Display the saved BMI history from localStorage
+        function displayBmiHistory() {
+            let history = JSON.parse(localStorage.getItem("bmiHistory")) || [];
+            let historyDiv = document.getElementById("bmiHistory");
+            historyDiv.innerHTML = "<h3>BMI History</h3>";
+            if (history.length === 0) {
+                historyDiv.innerHTML += "<p>No history available.</p>";
+            } else {
+                history.forEach(entry => {
+                    historyDiv.innerHTML += `<p>BMI: ${entry.bmi}, Date: ${entry.date}</p>`;
+                });
+            }
+        }
+
+        // Submit the form and calculate BMI
+        document.getElementById("bmiForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            let unit = document.querySelector('input[name="unit"]:checked').value;
+            let height, weight;
+            
+            if (unit === "metric") {
+                height = parseFloat(document.getElementById("height").value) / 100; // Convert cm to meters
+                weight = parseFloat(document.getElementById("weight").value);
+            } else {
+                let feet = parseFloat(document.getElementById("feet").value);
+                let inches = parseFloat(document.getElementById("inches").value);
+                height = (feet * 12 + inches) * 0.0254; // Convert feet+inches to meters
+                weight = parseFloat(document.getElementById("pounds").value) * 0.453592; // Convert pounds to kg
+            }
+
+            let age = document.getElementById("age").value;
+            let gender = document.getElementById("gender").value;
+
+            // Validate inputs
+            if (isNaN(height) || isNaN(weight) || isNaN(age) || !gender || height <= 0 || weight <= 0 || age <= 0) {
+                alert("Please enter valid values for height, weight, age, and gender.");
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('height', height * 100); // Send height in cm to backend
+            formData.append('weight', weight);       // Send weight in kg to backend
+            formData.append('age', age);
+            formData.append('gender', gender);
+
+            fetch('bmi.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("result").innerHTML = "Error: " + data.error;
+                } else {
+                    document.getElementById("result").innerHTML = "Your BMI is: " + data.bmi;
+                    document.getElementById("recommendations").innerHTML = data.recommendations;
+                    saveBmiHistory(data.bmi); // Save BMI to history
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        // Load BMI history when the page loads
+        document.addEventListener("DOMContentLoaded", displayBmiHistory);
+    </script>
+</body>
+</html>
